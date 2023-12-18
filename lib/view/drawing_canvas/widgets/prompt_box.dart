@@ -1,12 +1,17 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_drawing_board/view/batch_page.dart';
+import 'package:flutter_drawing_board/view/drawing_canvas/stable_api/drawing_to_img.dart';
+import 'package:flutter_drawing_board/view/drawing_canvas/stable_api/sketch_to_img.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:http/http.dart' as http;
+
+final IP = "172.20.10.6";
 
 class PromptBox extends HookWidget {
   final GlobalKey canvasGlobalKey;
@@ -20,117 +25,80 @@ class PromptBox extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageSizeRatio =
-        MediaQuery.of(context).size.width / MediaQuery.of(context).size.height;
-
     final textController = useTextEditingController();
     final text = useState('');
-    final isLoading = useState(false);
-    final responseText = useState('');
+    final isTxt2ImgLoading = useState(false);
+    final isImg2ImgLoading = useState(false);
 
-    Future<void> _txt2img() async {
-      isLoading.value = true;
+    void sketchSingle() async {
+      // get the canvas as an image
+      final canvasImage = await getCanvasImage();
 
-      final apiUrl = Uri.parse('http://192.168.1.84:7860/sdapi/v1/txt2img');
-
-      final Map<String, String> headers = {
-        'Content-Type': 'application/json',
-      };
-
-      final width = 512 * imageSizeRatio;
-
-      final Map<String, dynamic> requestBody = {
-        "prompt": text.value,
-        "batch_size": 1,
-        "steps": 20,
-        "width": width,
-        "height": 512,
-        "cfg_scale": 7,
-      };
-
-      final String requestBodyJson = jsonEncode(requestBody);
-
+      // get the output from the api
       try {
-        final response = await http.post(
-          apiUrl,
-          headers: headers,
-          body: requestBodyJson,
-        );
+        final newBackground =
+            await sketchToImageSingle(image: canvasImage, text: text.value);
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          responseText.value = "success";
-
-          final imageBytes = base64Decode(data['images'][0]);
-          backgroundImage.value = await decodeImageFromList(imageBytes);
-        } else {
-          responseText.value = 'Error: ${response.statusCode}';
-        }
+        // set the image as the new background
+        backgroundImage.value = newBackground;
       } catch (e) {
-        responseText.value = 'Error: $e';
-      } finally {
-        isLoading.value = false;
+        print("Error: $e");
       }
     }
 
-    Future<void> _img2img() async {
-      isLoading.value = true;
+    void sketchBatch() async {
+      // get the canvas as an image
+      final canvasImage = await getCanvasImage();
 
-      // get the encoded canvas
-      final encodedCanvas = await getEncodedCanvas();
-
-      final apiUrl = Uri.parse('http://192.168.1.84:7860/sdapi/v1/img2img');
-
-      final Map<String, String> headers = {
-        'Content-Type': 'application/json',
-      };
-
-      final width = 512 * imageSizeRatio;
-
-      final Map<String, dynamic> requestBody = {
-        "prompt": text.value,
-        "init_images": [encodedCanvas],
-        "denoising_strength": 0.6,
-        "negative_prompt": "",
-        "batch_size": 1,
-        "steps": 20,
-        "width": width,
-        "height": 512,
-        "cfg_scale": 7,
-        "alwayson_scripts": {
-          "controlnet": {
-            "args": [
-              {
-                "input_image": encodedCanvas,
-                "module": "canny",
-              }
-            ]
-          }
-        }
-      };
-
-      final String requestBodyJson = jsonEncode(requestBody);
-
+      // get the output from the api
       try {
-        final response = await http.post(
-          apiUrl,
-          headers: headers,
-          body: requestBodyJson,
+        final batch =
+            await sketchToImageBatch(image: canvasImage, text: text.value);
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  BatchPage(backgroundImage: backgroundImage, images: batch)),
         );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          responseText.value = "success";
-
-          final imageBytes = base64Decode(data['images'][0]);
-          backgroundImage.value = await decodeImageFromList(imageBytes);
-        } else {
-          responseText.value = 'Error: ${response.statusCode}';
-        }
       } catch (e) {
-        responseText.value = 'Error: $e';
-      } finally {
-        isLoading.value = false;
+        print("Error: $e");
+      }
+    }
+
+    void drawingSingle() async {
+      // get the canvas as an image
+      final canvasImage = await getCanvasImage();
+
+      // get the output from the api
+      try {
+        final newBackground =
+            await drawingToImgSingle(image: canvasImage, text: text.value);
+
+        // set the image as the new background
+        backgroundImage.value = newBackground;
+      } catch (e) {
+        print("Error: $e");
+      }
+    }
+
+    void drawingBatch() async {
+      // get the canvas as an image
+      final canvasImage = await getCanvasImage();
+
+      // get the output from the api
+      try {
+        final batch =
+            await drawingToImgBatch(image: canvasImage, text: text.value);
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  BatchPage(backgroundImage: backgroundImage, images: batch)),
+        );
+      } catch (e) {
+        print("Error: $e");
       }
     }
 
@@ -173,25 +141,51 @@ class PromptBox extends HookWidget {
             children: [
               Container(
                 width: 150,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8),
                 child: ElevatedButton(
-                  onPressed: () => _txt2img(),
-                  child: isLoading.value
-                      ? const CircularProgressIndicator()
-                      : const Text('txt2img'),
-                ),
+                    onPressed: isImg2ImgLoading.value || isTxt2ImgLoading.value
+                        ? null
+                        : () => sketchSingle,
+                    style: ElevatedButton.styleFrom(
+                      side: const BorderSide(color: Colors.blue),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (isTxt2ImgLoading.value)
+                            const CircularProgressIndicator()
+                          else
+                            const Text("txt2img")
+                        ],
+                      ),
+                    )),
               ),
               Container(
                 width: 150,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8),
                 child: ElevatedButton(
-                  onPressed: () => _img2img(),
-                  child: isLoading.value
-                      ? const CircularProgressIndicator()
-                      : const Text('img2img'),
+                  onPressed: isImg2ImgLoading.value || isTxt2ImgLoading.value
+                      ? null
+                      : () => drawingSingle,
+                  style: ElevatedButton.styleFrom(
+                    side: const BorderSide(color: Colors.blue),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (isImg2ImgLoading.value)
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          child: const CircularProgressIndicator(),
+                        )
+                      else
+                        const Text('img2img'),
+                    ],
+                  ),
                 ),
               ),
-              Text(responseText.value),
             ],
           ),
         ],
@@ -199,14 +193,10 @@ class PromptBox extends HookWidget {
     );
   }
 
-  Future<String> getEncodedCanvas() async {
+  Future<ui.Image> getCanvasImage() async {
     RenderRepaintBoundary boundary = canvasGlobalKey.currentContext
         ?.findRenderObject() as RenderRepaintBoundary;
-    ui.Image image = await boundary.toImage();
-    ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    Uint8List? pngBytes = byteData?.buffer.asUint8List();
 
-    // encode to base64
-    return base64Encode(pngBytes ?? []);
+    return await boundary.toImage();
   }
 }

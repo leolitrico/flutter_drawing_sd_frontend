@@ -22,17 +22,16 @@ class DrawingPage extends HookWidget {
     final polygonSides = useState<int>(3);
     final backgroundImage = useState<Image?>(null);
 
-    final canvasGlobalKey = GlobalKey();
+    final toolsAnimationController = useAnimationController(
+      duration: const Duration(milliseconds: 150),
+      initialValue: 1,
+    );
 
-    print("global: " + canvasGlobalKey.toString());
+    final canvasGlobalKey = GlobalKey();
 
     ValueNotifier<Sketch?> currentSketch = useState(null);
     ValueNotifier<List<Sketch>> allSketches = useState([]);
 
-    final animationController = useAnimationController(
-      duration: const Duration(milliseconds: 150),
-      initialValue: 1,
-    );
     return Scaffold(
       body: Stack(
         children: [
@@ -47,7 +46,7 @@ class DrawingPage extends HookWidget {
               selectedColor: selectedColor,
               strokeSize: strokeSize,
               eraserSize: eraserSize,
-              sideBarController: animationController,
+              sideBarController: toolsAnimationController,
               currentSketch: currentSketch,
               allSketches: allSketches,
               canvasGlobalKey: canvasGlobalKey,
@@ -63,7 +62,7 @@ class DrawingPage extends HookWidget {
               position: Tween<Offset>(
                 begin: const Offset(-1, 0),
                 end: Offset.zero,
-              ).animate(animationController),
+              ).animate(toolsAnimationController),
               child: CanvasSideBar(
                 drawingMode: drawingMode,
                 selectedColor: selectedColor,
@@ -78,24 +77,18 @@ class DrawingPage extends HookWidget {
               ),
             ),
           ),
-          _CustomAppBar(animationController: animationController),
-          Column(
-            children: [
-              const Spacer(),
-              Row(
-                children: [
-                  const Spacer(),
-                  PromptBox(
+          _CustomAppBar(animationController: toolsAnimationController),
+          Positioned(
+              bottom: 0,
+              right: 10,
+              child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 1), // Slide from the bottom
+                    end: Offset.zero,
+                  ).animate(toolsAnimationController),
+                  child: PromptBox(
                       canvasGlobalKey: canvasGlobalKey,
-                      backgroundImage: backgroundImage),
-                  const Spacer()
-                ],
-              ),
-              const SizedBox(
-                height: 20,
-              )
-            ],
-          ),
+                      backgroundImage: backgroundImage)))
         ],
       ),
     );
@@ -142,49 +135,3 @@ class _CustomAppBar extends StatelessWidget {
     );
   }
 }
-
-/*
-class _CollapsiblePromptBox extends HookWidget {
-  @override
-  Widget build(BuildContext context) {
-    final animationController = useAnimationController(
-      duration: const Duration(milliseconds: 150),
-      initialValue: 1,
-    );
-
-    return Column(
-      children: [
-        Container(
-          height: 30,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.all(Radius.circular(10)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.shade200,
-                blurRadius: 3,
-                offset: const Offset(3, 3),
-              ),
-            ],
-          ),
-          child: IconButton(
-            onPressed: () {
-              if (animationController.value == 0) {
-                animationController.forward();
-              } else {
-                animationController.reverse();
-              }
-            },
-            icon: const Icon(Icons.menu),
-          ),
-        ),
-        SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, -1),
-              end: Offset.zero,
-            ).animate(animationController),
-            child: const PromptBox()),
-      ],
-    );
-  }
-} */
