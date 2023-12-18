@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -9,9 +7,6 @@ import 'package:flutter_drawing_board/view/batch_page.dart';
 import 'package:flutter_drawing_board/view/drawing_canvas/stable_api/drawing_to_img.dart';
 import 'package:flutter_drawing_board/view/drawing_canvas/stable_api/sketch_to_img.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:http/http.dart' as http;
-
-final IP = "172.20.10.6";
 
 class PromptBox extends HookWidget {
   final GlobalKey canvasGlobalKey;
