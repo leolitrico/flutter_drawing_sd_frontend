@@ -1,46 +1,70 @@
 import 'dart:convert';
 import 'dart:ui' as ui;
-import 'package:flutter_drawing_board/view/drawing_canvas/stable_api/api_endpoint.dart';
-import 'package:flutter_drawing_board/view/drawing_canvas/utils/image_encoder.dart';
+import 'package:flutter_drawing_board/stable_api/api_endpoint.dart';
+import 'package:flutter_drawing_board/stable_api/change_model.dart';
+import 'package:flutter_drawing_board/stable_api/models.dart';
+import 'package:flutter_drawing_board/utils/image_encoder.dart';
 import 'package:http/http.dart' as http;
 
-const API_IMG_2_IMG_ENDPOINT = "sdapi/v1/txt2img";
+const API_TXT_2_IMG_ENDPOINT = "sdapi/v1/img2img";
 
-Future<ui.Image> drawingToImgSingle({
+////////////////////////////////////////////////////////////////////////////////
+/// SINGLE FUNCTION
+////////////////////////////////////////////////////////////////////////////////
+
+Future<ui.Image> sketchToInpaintingSingle({
   required ui.Image image,
+  required ui.Image controlSketch,
+  required ui.Image mask,
   required String text,
 }) async {
+  await changeSDModel(INPAINTING_MODEL);
+
   try {
-    final apiUrl = Uri.parse(API_ENDPOINT + API_IMG_2_IMG_ENDPOINT);
+    final apiUrl = Uri.parse(API_ENDPOINT + API_TXT_2_IMG_ENDPOINT);
 
     final Map<String, String> headers = {
       'Content-Type': 'application/json',
     };
 
-    final encodedImage = encodeImageToBase64(image);
+    final encodedImage = await encodeImageToBase64(image);
+    final encodedMask = await encodeImageToBase64(mask);
+    final encodedControlSketch = await encodeImageToBase64(controlSketch);
 
     // compute the output width and height
-    final imageSizeRatio = image.height / image.width;
-    const outputWidth = 512;
-    final outputHeight = imageSizeRatio * outputWidth;
+    final imageSizeRatio = image.width / image.height;
+    const outputHeight = 512;
+    final outputWidth = imageSizeRatio * outputHeight;
 
     final Map<String, dynamic> requestBody = {
+      "init_images": [encodedImage],
       "prompt": text,
       "batch_size": 1,
-      "steps": 20,
+      "steps": 25,
       "width": outputWidth,
       "height": outputHeight,
       "cfg_scale": 7,
       "sampler_index": "Euler a",
-      //"hr_sampler_name": "Euler a",
+
+      //inpainting
+      "mask": encodedMask,
+      "mask_blur": 4,
+      "inpainting_fill": 2,
+      "inpaint_full_res": 0,
+      "inpaint_full_res_padding": 32,
+      "inpainting_mask_invert": 0,
+      "denoising_strength": 1.0,
+      "include_init_images": false,
+      "resize_mode": 0,
+
+      // controlnet
       "alwayson_scripts": {
         "controlnet": {
           "args": [
             {
-              "input_image": encodedImage,
+              "input_image": encodedControlSketch,
               "module": "scribble_hed",
               "model": "control_sd15_scribble [fef5e48e]",
-              //"model": "control_sd15_canny [fef5e48e]",
               "control_mode": 0,
               "pixel_perfect": true,
               "resize_mode": 1,
@@ -75,41 +99,63 @@ Future<ui.Image> drawingToImgSingle({
   }
 }
 
-Future<List<ui.Image>> drawingToImgBatch({
+////////////////////////////////////////////////////////////////////////////////
+/// BATCH FUNCTION
+////////////////////////////////////////////////////////////////////////////////
+
+Future<List<ui.Image>> sketchToInpaintingBatch({
   required ui.Image image,
+  required ui.Image controlSketch,
+  required ui.Image mask,
   required String text,
 }) async {
+  await changeSDModel(INPAINTING_MODEL);
+
   try {
-    final apiUrl = Uri.parse(API_ENDPOINT + API_IMG_2_IMG_ENDPOINT);
+    final apiUrl = Uri.parse(API_ENDPOINT + API_TXT_2_IMG_ENDPOINT);
 
     final Map<String, String> headers = {
       'Content-Type': 'application/json',
     };
 
-    final encodedImage = encodeImageToBase64(image);
+    final encodedImage = await encodeImageToBase64(image);
+    final encodedControlSketch = await encodeImageToBase64(controlSketch);
+    final encodedMask = await encodeImageToBase64(mask);
 
     // compute the output width and height
-    final imageSizeRatio = image.height / image.width;
-    const outputWidth = 256;
+    final imageSizeRatio = controlSketch.height / controlSketch.width;
+    const outputWidth = 512;
     final outputHeight = imageSizeRatio * outputWidth;
 
     final Map<String, dynamic> requestBody = {
+      "init_images": [encodedImage],
       "prompt": text,
-      "batch_size": 6,
-      "steps": 20,
+      "batch_size": 1,
+      "steps": 25,
       "width": outputWidth,
       "height": outputHeight,
       "cfg_scale": 7,
       "sampler_index": "Euler a",
-      //"hr_sampler_name": "Euler a",
+
+      //inpainting
+      "mask": encodedMask,
+      "mask_blur": 4,
+      "inpainting_fill": 2,
+      "inpaint_full_res": 0,
+      "inpaint_full_res_padding": 32,
+      "inpainting_mask_invert": 0,
+      "denoising_strength": 1.0,
+      "include_init_images": false,
+      "resize_mode": 0,
+
+      // controlnet
       "alwayson_scripts": {
         "controlnet": {
           "args": [
             {
-              "input_image": encodedImage,
+              "input_image": encodedControlSketch,
               "module": "scribble_hed",
               "model": "control_sd15_scribble [fef5e48e]",
-              //"model": "control_sd15_canny [fef5e48e]",
               "control_mode": 0,
               "pixel_perfect": true,
               "resize_mode": 1,
@@ -134,8 +180,10 @@ Future<List<ui.Image>> drawingToImgBatch({
 
       List<ui.Image> images = [];
 
-      List<dynamic> imageList =
-          data['images']; // Assuming 'images' is a List<dynamic>
+      List<dynamic> imageList = data['images'];
+
+      // get ride of controlnet image
+      //imageList = imageList.sublist(0, imageList.length - 1);
 
       for (var item in imageList) {
         if (item is String) {

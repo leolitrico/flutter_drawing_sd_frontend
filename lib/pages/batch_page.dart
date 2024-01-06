@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart' hide Image;
 import 'dart:ui';
 
+import 'package:flutter_drawing_board/models/undo_redo_manager.dart';
+
 class BatchPage extends StatefulWidget {
   final List<Image> images; // Change the type to ui.Image
-  final ValueNotifier<Image?> backgroundImage;
+  final ValueNotifier<UndoRedoManager> undoRedoManager;
 
-  const BatchPage(
-      {Key? key, required this.images, required this.backgroundImage})
-      : super(key: key);
+  const BatchPage({
+    Key? key,
+    required this.images,
+    required this.undoRedoManager,
+  }) : super(key: key);
 
   @override
   _BatchPageState createState() => _BatchPageState();
 }
 
 class _BatchPageState extends State<BatchPage> {
-  int _selectedImageIndex = 0;
+  int? _selectedImageIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -40,14 +44,17 @@ class _BatchPageState extends State<BatchPage> {
                       _selectedImageIndex = index;
                     });
                   },
-                  child: CustomPaint(
-                    painter: ImagePainter(widget.images[index]),
-                    child: Container(
-                      alignment: Alignment.bottomRight,
-                      child: _selectedImageIndex == index
-                          ? const Icon(Icons.check_circle,
-                              color: Colors.green, size: 24.0)
-                          : Container(),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _selectedImageIndex == index
+                            ? Colors.blue
+                            : Colors.transparent,
+                        width: 6.0,
+                      ),
+                    ),
+                    child: CustomPaint(
+                      painter: ImagePainter(widget.images[index]),
                     ),
                   ),
                 );
@@ -55,18 +62,21 @@ class _BatchPageState extends State<BatchPage> {
             ),
           ),
           const SizedBox(height: 20.0),
-          Text('Selected Image Index: $_selectedImageIndex'),
           ElevatedButton(
             onPressed: () {
               // Set the selected image as the background (implement your logic here)
-              Image selectedImage = widget.images[_selectedImageIndex];
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-                widget.backgroundImage.value = selectedImage;
+              if (_selectedImageIndex != null) {
+                Image selectedImage = widget.images[_selectedImageIndex!];
+                if (Navigator.canPop(context)) {
+                  widget.undoRedoManager.value
+                      .newBackgroundImage(selectedImage);
+                  Navigator.pop(context);
+                }
               }
-              print('Set as background: $selectedImage');
             },
-            child: const Text('Set as Background'),
+            child: _selectedImageIndex != null
+                ? const Text('Confirm')
+                : const Text('Select An Image'),
           ),
         ],
       ),
@@ -81,7 +91,17 @@ class ImagePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawImage(image, Offset.zero, Paint());
+    // Adjust the destination rectangle to fill the available space
+    final Rect destinationRect =
+        Rect.fromPoints(Offset.zero, Offset(size.width, size.height));
+
+    canvas.drawImageRect(
+      image,
+      Rect.fromPoints(
+          Offset.zero, Offset(image.width.toDouble(), image.height.toDouble())),
+      destinationRect,
+      Paint(),
+    );
   }
 
   @override

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_drawing_board/view/drawing_page.dart';
+import 'package:flutter_drawing_board/pages/drawing_page/drawing_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Let\'s Draw',
+      title: 'SketchAI',
       theme: ThemeData(primarySwatch: Colors.blue),
       debugShowCheckedModeBanner: false,
       home: const DrawingPage(),
