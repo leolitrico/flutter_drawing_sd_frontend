@@ -29,7 +29,7 @@ Future<ui.Image> drawingInpaintingSingle({
     };
 
     final encodedImage = await encodeImageToBase64(image);
-    final encodedMask = await encodeImageToBase64(image);
+    final encodedMask = await encodeImageToBase64(mask);
     final encodedControlSketch = await encodeImageToBase64(controlSketch);
 
     // compute the output width and height
@@ -120,7 +120,7 @@ Future<List<ui.Image>> drawingInpaintingBatch({
     };
 
     final encodedImage = await encodeImageToBase64(image);
-    final encodedMask = await encodeImageToBase64(image);
+    final encodedMask = await encodeImageToBase64(mask);
     final encodedControlSketch = await encodeImageToBase64(controlSketch);
 
     // compute the output width and height
