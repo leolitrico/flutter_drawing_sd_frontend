@@ -130,7 +130,7 @@ Future<List<ui.Image>> sketchToInpaintingBatch({
     final Map<String, dynamic> requestBody = {
       "init_images": [encodedImage],
       "prompt": text,
-      "batch_size": 1,
+      "batch_size": 6,
       "steps": 25,
       "width": outputWidth,
       "height": outputHeight,
