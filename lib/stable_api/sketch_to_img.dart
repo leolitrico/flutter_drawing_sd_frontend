@@ -151,7 +151,7 @@ Future<List<ui.Image>> sketchToImageBatch({
       List<dynamic> imageList = data['images'];
 
       // get rid of control net image
-      //imageList = imageList.sublist(0, imageList.length - 1);
+      imageList = imageList.sublist(0, imageList.length - 1);
 
       for (var item in imageList) {
         if (item is String) {

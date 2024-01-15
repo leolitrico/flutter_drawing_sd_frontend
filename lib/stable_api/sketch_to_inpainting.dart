@@ -183,7 +183,7 @@ Future<List<ui.Image>> sketchToInpaintingBatch({
       List<dynamic> imageList = data['images'];
 
       // get ride of controlnet image
-      //imageList = imageList.sublist(0, imageList.length - 1);
+      imageList = imageList.sublist(0, imageList.length - 1);
 
       for (var item in imageList) {
         if (item is String) {
